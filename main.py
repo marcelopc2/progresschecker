@@ -17,14 +17,14 @@ headers = {
 st.set_page_config(layout="wide",page_title="Super Course Checker", page_icon="🚀")
 # Lista de subcuentas (IDs y nombres descriptivos)
 subcuentas = {
-    "Especialidad de Endodoncia": 746,
-    "Especialidad de Rehabilitación Oral": 734,
-    "Especialidad de Implantología Buco Maxilofacial": 732,
-    "Especialidad Odontológica en Imagenología Oral y Maxilofacial": 459,
-    "Especialidad en Medicina Familiar": 745,
-    "Especialidad Médica en Medicina Interna": 743,
-    "Especialidad en Imagenología Medica": 748,
-    "Especialidad en Medicina de Urgencia": 747,
+    "Especialidad de Endodoncia": [746, 749],
+    "Especialidad de Rehabilitación Oral": [734, 735],
+    "Especialidad de Implantología Buco Maxilofacial": [732, 733],
+    "Especialidad Odontológica en Imagenología Oral y Maxilofacial": [459],
+    "Especialidad en Medicina Familiar": [745],
+    "Especialidad Médica en Medicina Interna": [743],
+    "Especialidad en Imagenología Medica": [748],
+    "Especialidad en Medicina de Urgencia": [747],
 }
 
 opciones_subcuentas = ["Seleccione una Especialidad"] + list(subcuentas.keys())
@@ -33,26 +33,27 @@ subcuenta_seleccionada = st.selectbox("Selecciona la Especialidad que deseas rev
 
 def obtener_cursos(subcuenta_id):
     cursos = []
-    url = f"{CANVAS_API_URL}accounts/{subcuenta_id}/courses"
     params = {
         "per_page": 100,
         "include[]": ["sis_course_id"]
     }
-
-    while url:
-        response = requests.get(url, headers=headers, params=params)
-        if response.status_code != 200:
-            st.error(f"Error al obtener los cursos: {response.status_code} - {response.text}")
-            return []
-        try:
-            data = response.json()
-            cursos.extend([curso for curso in data if not curso.get("blueprint") and not '2022' in curso.get('sis_course_id')])
-            # Obtener el siguiente enlace de la paginación
-            url = response.links.get('next', {}).get('url')
-        except ValueError:
-            st.error("La respuesta de la API no es un JSON válido.")
-            return []
-        params = None  # Después de la primera solicitud, los parámetros ya están en la URL
+    for subcuenta in subcuenta_id:
+        url = f"{CANVAS_API_URL}accounts/{subcuenta}/courses"
+        while url:
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code != 200:
+                st.error(f"Error al obtener los cursos: {response.status_code} - {response.text}")
+                return []
+            try:
+                data = response.json()
+                cursos.extend([curso for curso in data if not curso.get("blueprint") and curso.get("sis_course_id") and not '2022' in curso.get("sis_course_id")])
+                # Obtener el siguiente enlace de la paginación
+                url = response.links.get('next', {}).get('url')
+            except ValueError:
+                st.error("La respuesta de la API no es un JSON válido.")
+                return []
+            params = None  # Después de la primera solicitud, los parámetros ya están en la URL
+    print(f"Cantidad: {len(cursos)}")
     return cursos
 
 # Función para obtener la página de inicio del curso
@@ -192,6 +193,7 @@ if subcuenta_seleccionada != "Seleccione una Especialidad":
     cursos = obtener_cursos(subcuenta_id)
 
     data = []
+    st.write(f"Cantidad de cursos: {len(cursos)}")
     for curso in cursos:
         nombre_curso = curso.get("name")
         curso_id = curso.get("id")
